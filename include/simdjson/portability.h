@@ -39,8 +39,12 @@ static inline int hamming(uint64_t input_num) {
 #include <cstdint>
 #include <cstdlib>
 
-#if defined(__BMI2__) || defined(__POPCOUNT__) || defined(__AVX2__)
-#include <x86intrin.h>
+#if defined(__BMI2__) || defined(__POPCOUNT__) || defined(__SSE4_2__)
+#include <emmintrin.h>
+#include <immintrin.h>
+#include <smmintrin.h>
+#include <tmmintrin.h>
+#include <wmmintrin.h>
 #endif
 
 static inline bool add_overflow(uint64_t  value1, uint64_t  value2, uint64_t *result) {
@@ -95,30 +99,22 @@ static inline void *aligned_malloc(size_t alignment, size_t size) {
 	return p;
 }
 
+#ifdef __SSE4_2__
 
-#ifdef __AVX2__
+static __m128i inline _mm_loadu2_m128(__m64 const *__addr_hi,
+                                          __m64 const *__addr_lo) {
+    __m128i __v128 = _mm_set_epi64(*__addr_hi, *__addr_lo);
 
-#ifndef __clang__
-#ifndef _MSC_VER
-static __m256i inline _mm256_loadu2_m128i(__m128i const *__addr_hi,
-                                          __m128i const *__addr_lo) {
-  __m256i __v256 = _mm256_castsi128_si256(_mm_loadu_si128(__addr_lo));
-  return _mm256_insertf128_si256(__v256, _mm_loadu_si128(__addr_hi), 1);
+    return __v128;
 }
 
-static inline void _mm256_storeu2_m128i(__m128i *__addr_hi, __m128i *__addr_lo,
-                                        __m256i __a) {
-  __m128i __v128;
-
-  __v128 = _mm256_castsi256_si128(__a);
-  _mm_storeu_si128(__addr_lo, __v128);
-  __v128 = _mm256_extractf128_si256(__a, 1);
-  _mm_storeu_si128(__addr_hi, __v128);
+static inline void _mm_storeu2_m64(__m64 *__addr_hi, __m64 *__addr_lo,
+                                        __m128i __a) {
+    *__addr_hi = (__m64) _mm_extract_epi64(__a, 1);
+    *__addr_lo = (__m64) _mm_extract_epi64(__a, 0);
 }
-#endif
-#endif
 
-#endif // AVX_2
+#endif // SSE4_2
 
 static inline void aligned_free(void *memblock) {
     if(memblock == nullptr) { return; }
